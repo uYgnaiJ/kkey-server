@@ -49,6 +49,8 @@ fun Application.module() {
                 log("All ${serverList.size} servers in history failed to respond.")
                 ServerService.fetchServerByInput(this)
             }
+
+            DataService.fetchData(successfulIps.first())
         }
     }
 
