@@ -1,0 +1,6 @@
+ktor:
+  application:
+    modules:
+      - omniaetern.kkey.ApplicationKt.module
+  deployment:
+    port: 9091
