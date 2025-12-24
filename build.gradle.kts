@@ -15,11 +15,17 @@ application {
     mainClass = "io.ktor.server.netty.EngineMain"
 }
 
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty")
     implementation("io.ktor:ktor-client-core")
     implementation("io.ktor:ktor-client-cio")
+    implementation("io.ktor:ktor-client-apache")
+    implementation("io.ktor:ktor-client-content-negotiation")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("io.ktor:ktor-server-content-negotiation")
     implementation("io.ktor:ktor-server-core")

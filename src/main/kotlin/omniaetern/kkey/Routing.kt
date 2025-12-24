@@ -15,12 +15,14 @@ fun Application.configureRouting() {
         }
 
         get("/server-list"){
+            log("Received request for /server-list")
             val servers: Set<IP> = ServerService.loadServerAddresses()
-            val responseText = servers.joinToString(";")
+            val responseText = servers.joinToString(";") { it.address }
             call.respondText(responseText)
         }
 
         get("/data"){
+            log("Received request for /data")
             val data: List<PasswordEntry> = DataService.loadData()
             call.respond(data)
         }

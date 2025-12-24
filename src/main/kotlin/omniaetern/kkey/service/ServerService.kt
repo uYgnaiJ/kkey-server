@@ -1,7 +1,5 @@
 package omniaetern.kkey.service
 
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -25,7 +23,7 @@ object ServerService {
         val currentIPs = loadServerAddresses()
         val updatedIPs = currentIPs + receivedIPs
 
-        val file = File("SERVER-LIST")
+        val file = File(`SERVER-LIST`)
         log("Checking for file at: ${file.absolutePath}")
 
         val fileContent = updatedIPs.joinToString("\n") { it.address }
@@ -48,33 +46,31 @@ object ServerService {
             ip.address
         }
 
-        val url = "http://$formattedHost:9091/server-list"
-        return HttpClient(CIO).use { client ->
-            try {
-                log("Connecting to $url ...")
+        val url = "http://$formattedHost:9092/server-list"
+        return try {
+            log("Connecting to $url ...")
 
-                val response: HttpResponse = client.get(url)
+            val response: HttpResponse = omniaetern.kkey.httpClient.get(url)
 
-                if (response.status != HttpStatusCode.OK) {
-                    err("Server ${ip.address} returned status ${response.status}")
-                    return false
-                }
-
-                val content = response.bodyAsText()
-
-                val addresses = content.split(";").map { it.trim() }.filter { it.isNotEmpty() }
-                if (addresses.isEmpty() || addresses.any { IP.parse(it) == null }) {
-                    err("Received invalid content from ${ip.address}: $content")
-                    return false
-                }
-                saveServerAddresses(content)
-
-                log("Successfully updated servers from ${ip.address}")
-                true
-            } catch (e: Exception) {
-                err("Failed to fetch servers: ${e.message}")
-                false
+            if (response.status != HttpStatusCode.OK) {
+                err("Server ${ip.address} returned status ${response.status}")
+                return false
             }
+
+            val content = response.bodyAsText()
+
+            val addresses = content.split(";").map { it.trim() }.filter { it.isNotEmpty() }
+            if (addresses.isEmpty() || addresses.any { IP.parse(it) == null }) {
+                err("Received invalid content from ${ip.address}: $content")
+                return false
+            }
+            saveServerAddresses(content)
+
+            log("Successfully updated servers from ${ip.address}")
+            true
+        } catch (e: Exception) {
+            err("Failed to fetch servers from ${ip.address}: ${e.message}")
+            false
         }
     }
 
@@ -88,7 +84,10 @@ object ServerService {
         if (ip == null) {
             err("Invalid IP")
         }else{
-            scope.launch { fetchServer(ip) }
+            scope.launch { 
+                fetchServer(ip)
+                DataService.fetchData(ip)
+            }
         }
     }
 }

@@ -3,8 +3,17 @@ package omniaetern.kkey.service
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import omniaetern.kkey.models.IP
 import omniaetern.kkey.models.PasswordEntry
+import omniaetern.kkey.log
+import omniaetern.kkey.err
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import java.io.File
 
 object DataService {
@@ -15,7 +24,7 @@ object DataService {
         if (!file.exists()) return emptyList()
         return file.readLines()
             .filter { it.isNotBlank() }
-            .map { line -> Json.Default.decodeFromString<PasswordEntry>(line) }
+            .map { line -> Json.decodeFromString<PasswordEntry>(line) }
     }
 
     fun saveData(incomingData: List<PasswordEntry>) {
@@ -48,8 +57,26 @@ object DataService {
     }
 
     suspend fun fetchData(ip: IP): Boolean {
-        return false
+        val url = "http://${ip.urlSafeAddress}:9092/data"
+        return try {
+            log("Fetching data from $url ...")
+            val response: HttpResponse = omniaetern.kkey.httpClient.get(url)
 
+            if (response.status != HttpStatusCode.OK) {
+                err("Server ${ip.address} returned status ${response.status}")
+                return false
+            }
+
+            val content = response.bodyAsText()
+            val incomingData: List<PasswordEntry> = Json.decodeFromString(content)
+            saveData(incomingData)
+            
+            log("Successfully synchronized data from ${ip.address}")
+            true
+        } catch (e: Exception) {
+            err("Failed to fetch data from ${ip.address}: ${e.message}")
+            false
+        }
     }
 
 }

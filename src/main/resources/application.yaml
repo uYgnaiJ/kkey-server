@@ -3,4 +3,4 @@ ktor:
     modules:
       - omniaetern.kkey.ApplicationKt.module
   deployment:
-    port: 9091
+    port: 9092
