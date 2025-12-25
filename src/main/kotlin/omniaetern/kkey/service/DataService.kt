@@ -1,19 +1,14 @@
 package omniaetern.kkey.service
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 import omniaetern.kkey.models.IP
 import omniaetern.kkey.models.PasswordEntry
 import omniaetern.kkey.log
 import omniaetern.kkey.err
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import omniaetern.kkey.models.SecureRequest
 import java.io.File
 
 object DataService {
@@ -29,48 +24,65 @@ object DataService {
 
     fun saveData(incomingData: List<PasswordEntry>) {
         val currentMap = loadData().associateBy { it.id }.toMutableMap()
-
+        val now = System.currentTimeMillis()
         for (incoming in incomingData) {
             val existing = currentMap[incoming.id]
-            if (existing == null) {
-                // New ID: Just add it
-                currentMap[incoming.id] = incoming
-            } else {
-                // Conflict
-                val shouldUpdate = when {
-                    // Rule 1: Greater version wins
-                    incoming.version > existing.version -> true
-                    // Rule 2: Version is same, later time wins
-                    incoming.version == existing.version && incoming.lastModified > existing.lastModified -> true
-                    else -> false
+            when {
+                incoming.id.isBlank() -> {
+                    val newEntry = incoming.copy(
+                        id = java.util.UUID.randomUUID().toString(),
+                        lastModified = now
+                    )
+                    currentMap[newEntry.id] = newEntry
                 }
-                if (shouldUpdate) {
+                existing == null -> {
                     currentMap[incoming.id] = incoming
+                }
+                else -> {
+                    val shouldUpdate = when {
+                        incoming.version > existing.version -> true
+                        incoming.version == existing.version && incoming.lastModified > existing.lastModified -> true
+                        else -> false
+                    }
+                    if (shouldUpdate) {
+                        val updatedEntry = if (incoming.version > existing.version) {
+                            incoming.copy(lastModified = maxOf(incoming.lastModified, now))
+                        } else {
+                            incoming
+                        }
+                        currentMap[incoming.id] = updatedEntry
+                    }
                 }
             }
         }
-
         val file = File(PASSWORDS)
         file.parentFile?.mkdirs()
-        val newFileContent = currentMap.values.joinToString("\n") { entry -> Json.encodeToString(entry) }
-        file.writeText(newFileContent)
+        val newFileContent = currentMap.values.joinToString("\n") { entry ->
+            Json.encodeToString(entry)
+        }
+        return file.writeText(newFileContent)
     }
 
     suspend fun fetchData(ip: IP): Boolean {
-        val url = "http://${ip.urlSafeAddress}:9092/data"
+        val url = "http://${ip.urlSafeAddress}:9092/fetch/data"
         return try {
             log("Fetching data from $url ...")
             val response: HttpResponse = omniaetern.kkey.httpClient.get(url)
-
             if (response.status != HttpStatusCode.OK) {
                 err("Server ${ip.address} returned status ${response.status}")
                 return false
             }
-
             val content = response.bodyAsText()
-            val incomingData: List<PasswordEntry> = Json.decodeFromString(content)
+            val secureWrapper = Json.decodeFromString<SecureRequest>(content)
+            val decryptedJson = CryptoService.decrypt(
+                secureWrapper.encryptedData,
+                secureWrapper.iv,
+                AppConfig.secretKey
+            )
+            val incomingData: List<PasswordEntry> = Json.decodeFromString(decryptedJson)
+
             saveData(incomingData)
-            
+
             log("Successfully synchronized data from ${ip.address}")
             true
         } catch (e: Exception) {
