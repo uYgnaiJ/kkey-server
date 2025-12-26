@@ -19,14 +19,14 @@ fun Application.configureRouting() {
             call.respondText("Hello World!")
         }
         get("/fetch/server-list"){
-            log("Received request for /server-list")
+            log("Received request for /fetch/server-list")
             val servers: Set<IP> = ServerService.loadServerAddresses()
             val responseText = servers.joinToString(";") { it.address }
             call.respondText(responseText)
         }
 
         get("/fetch/data"){
-            log("Received request for /data")
+            log("Received request for /fetch/data")
 
             // 1. Get the plain data
             val plainList: List<PasswordEntry> = DataService.loadData()

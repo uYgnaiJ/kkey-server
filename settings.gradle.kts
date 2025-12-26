@@ -1,4 +1,4 @@
-rootProject.name = "kkey"
+rootProject.name = "kkey-server"
 
 dependencyResolutionManagement {
     repositories {
