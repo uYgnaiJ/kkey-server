@@ -64,7 +64,7 @@ object DataService {
     }
 
     suspend fun fetchData(ip: IP): Boolean {
-        val url = "http://${ip.urlSafeAddress}:9092/fetch/data"
+        val url = "http://${ip.urlSafeAddress}:7347/fetch/data"
         return try {
             log("Fetching data from $url ...")
             val response: HttpResponse = omniaetern.kkey.httpClient.get(url)

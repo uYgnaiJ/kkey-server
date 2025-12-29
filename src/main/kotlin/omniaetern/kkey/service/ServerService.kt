@@ -46,7 +46,7 @@ object ServerService {
             ip.address
         }
 
-        val url = "http://$formattedHost:9092/fetch/server-list"
+        val url = "http://$formattedHost:7347/fetch/server-list"
         return try {
             log("Connecting to $url ...")
 
